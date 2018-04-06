@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
+</head>
+<body>
+<div id="box" style="position:relative;width:300px;height:300px;overflow:hidden;background:#ababab;">
+    <img src="http://item.ssgcdn.com/17/06/30/item/1000005300617_i1_290.jpg"
+         style="position:absolute;left:0;top:0;width:300px;height:300px">
+</div>
+
+
+
+
+    <style type="text/css">
+        h2
+        {
+            margin: 0 0 10px 0;
+        }
+        p
+        {
+            margin: 0 0 5px 0;
+        }
+
+        p#code
+        {
+            display: block;
+            margin: 0;
+            border: 1px solid #888;
+            background-color: #fff;
+            padding: 10px 15px;
+            font: 10pt Arial;
+        }
+
+        #preview, #preview2, #input
+        {
+            position: relative;
+            margin: 0 0 20px 0;
+            border: 1px solid #f0f;
+            padding: 0;
+        }
+
+        #input .region
+        {
+            position: absolute;
+            border: 1px solid #0f0;
+        }
+
+        #panel
+        {
+            position: fixed;
+            right: 20px;
+            top: 20px;
+            padding: 20px;
+            background-color: #fff;
+            background-color: rgba(255,255,255,0.8);
+            border-radius: 10px;
+            border: 1px solid #888;
+        }
+
+        .outerwrapper
+        {
+            position: relative;
+            overflow: hidden;
+            background-color: #edc;
+        }
+
+        .outerwrapper .innerwrapper
+        {
+            position: absolute;
+        }
+
+        .outerwrapper .indicator
+        {
+            position: absolute;
+            margin: 0;
+            padding: 0;
+        }
+        .outerwrapper .indicator2
+        {
+            position: absolute;
+            background-color: rgba(255,255,0,0.5);
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+
+    <form>
+    <p>
+        Final output:</p>
+    <div id="preview">
+    </div>
+    <p>
+        Crop region:</p>
+    <div id="preview2">
+    </div>
+    <p>
+        Original image + region of interest:</p>
+    <div id="input">
+    </div>
+    <div id="panel">
+        <h2>
+            Interactive demo</h2>
+        <p>
+            <a href="#" id="demo1">demo1</a> <a href="#" id="demo2">demo2</a> <a href="#" id="demo3">demo3</a> <a href="#" id="demo4">demo4</a>
+        </p>
+        <p>
+            <input type="checkbox" id="re" />
+            Region of interest:
+            <input type="text" id="rx1" style="width: 30px;" />
+            <input type="text" id="ry1" style="width: 30px;" />
+            to
+            <input type="text" id="rx2" style="width: 30px;" />
+            <input type="text" id="ry2" style="width: 30px;" />
+        </p>
+        <p>
+            <input type="checkbox" id="fe" />
+            Fill
+        </p>
+        <p>
+            Target size:
+            <input type="text" id="ow" style="width: 30px;" />
+            x
+            <input type="text" id="oh" style="width: 30px;" />
+            aspect
+            <input type="text" id="oa" style="width: 40px;" />
+        </p>
+        <p>
+            Input image url:
+            <input type="text" id="iu" />
+            Size:
+            <input type="text" id="iw" style="width: 30px;" />
+            x
+            <input type="text" id="ih" style="width: 30px;" />
+        </p>
+        <h2>
+            Code</h2>
+        <textarea id="code" style="width: 100%; height: 100px;">
+            dummy
+        </textarea>
+    </div>
+    </form>
+    <script type="text/javascript">
+
+
+var ImageScaler2 = {
+
+    calcSize: function (iw, ih, inputaspect) {
+        var r = { width: 0, height: 0 };
+        if (iw > 0)
+            r.width = iw;
+        if (ih > 0)
+            r.height = ih;
+        if (r.height == 0)
+            r.height = Math.round(r.width / inputaspect);
+        if (r.width == 0)
+            r.width = Math.round(r.height * inputaspect);
+        return r;
+    },
+
+    calcMag: function (iw, ih, ow, oh, fill) {
+
+        var ia = iw / ih;
+        var oa = ow / oh;
+        var wm = ow / iw;
+        var hm = oh / ih;
+
+        var mag = fill ? Math.max(wm, hm) : Math.min(wm, hm);
+        if (!fill)
+            if (mag > 1.0)
+                mag = 1.0;
+
+        mag *= 100;
+        mag = Math.ceil(mag);
+        mag /= 100;
+
+        return mag;
+    },
+
+    calcRegion1: function (iw, ih, ow, oh, fill) {
+
+        var mag = ImageScaler2.calcMag(iw, ih, ow, oh, fill);
+
+        var r = { mag: mag };
+
+
+        var how2 = iw * mag / 2;
+        var hoh2 = ih * mag / 2;
+        var cx = ow / 2;
+        var cy = oh / 2;
+        r.l = Math.floor(cx - how2);
+        r.t = Math.floor(cy - hoh2);
+        r.r = Math.ceil(cx + how2);
+        r.b = Math.ceil(cy + hoh2);
+
+        return r;
+    },
+
+    calcRegion2: function (iw, ih, ow, oh, cx, cy, fill) {
+
+        var mag = ImageScaler2.calcMag(iw, ih, ow, oh, fill);
+
+        var r = { mag: mag };
+
+        var how2 = iw * mag / 2;
+        var hoh2 = ih * mag / 2;
+
+        var cx = ow / 2;
+        var cy = oh / 2;
+
+        r.l = Math.floor(cx - how2);
+        r.t = Math.floor(cy - hoh2);
+        r.r = Math.ceil(cx + how2);
+        r.b = Math.ceil(cy + hoh2);
+
+        return r;
+    },
+
+    calcRegion3: function (iw, ih, ow, oh, rx1, ry1, rx2, ry2, fill) {
+
+        var rw = rx2 - rx1;
+        var rh = ry2 - ry1;
+
+        var oa = ow / oh;
+
+        // fix region aspect
+        if (ow > oh) {
+            rh = rw / oa;
+        } else if (ow < oh) {
+            rw = rh * oa;
+        }
+
+        // re center region
+        var rx = (rx1 + rx2) / 2;
+        var ry = (ry1 + ry2) / 2;
+        rx1 = rx - rw / 2;
+        ry1 = ry - rh / 2;
+        rx2 = rx + rw / 2;
+        ry2 = ry + rh / 2;
+
+        var mag = ImageScaler2.calcMag(iw, ih, ow, oh, fill);
+
+        var rmag = ImageScaler2.calcMag(rw, rh, ow, oh, fill);
+        if (mag < rmag)
+            mag = rmag;
+
+        var how = ow * mag;
+        var hoh = oh * mag;
+        var how2 = how / 2;
+        var hoh2 = hoh / 2;
+
+        // output span (screenspace)
+
+        // input span (texturespace)
+        var rxsi = (iw * mag) - (ow);
+        var rysi = (ih * mag) - (oh); // ryso / mag;
+
+        var rxso = rxsi; // / mag;
+        var ryso = rysi; // / mag;
+
+        // offset (percent)
+        var rxp = (rxsi > 0) ? rx1 * mag / rxsi : 0;
+        var ryp = (rysi > 0) ? ry1 * mag / rysi : 0;
+
+        // clip and round
+        rxp = Math.max(0, Math.min(1, rxp));
+        ryp = Math.max(0, Math.min(1, ryp));
+        rxp = Math.round(rxp * 1000) / 1000;
+        ryp = Math.round(ryp * 1000) / 1000;
+
+        // return structure
+        var r = {
+            rw: rw,
+            rh: rh,
+            mag: mag,
+            rmag: rmag,
+            how: how,
+            hoh: hoh,
+            rw: rw,
+            rh: rh,
+            rxp: rxp,
+            ryp: ryp,
+            rxso: rxso,
+            ryso: ryso,
+            rxsi: rxsi,
+            rysi: rysi
+        };
+
+        // offset in screenspace
+        var cx = rxso * rxp;
+        var cy = ryso * ryp;
+
+        // limit region to image
+        if (fill) {
+            cx = Math.max(cx, 0);
+            cy = Math.max(cy, 0);
+            cx = Math.min(cx, rxso);
+            cy = Math.min(cy, ryso);
+        }
+
+        // borders
+        r.cx = cx;
+        r.cy = cy;
+        r.l = Math.floor(-cx);
+        r.t = Math.floor(-cy);
+        r.r = Math.ceil(-cx + how);
+        r.b = Math.ceil(-cy + hoh);
+
+        // profit
+        return r;
+    },
+
+    getThumbnail: function (inputurl, iw, ih, ow, oh, rx1, ry1, rx2, ry2) {
+    }
+
+};
+
+
+
+        (function () {
+
+            updateoutput = function () {
+
+                var iu = $('#iu').val();
+
+                var iw = parseInt($('#iw').val());
+                var ih = parseInt($('#ih').val());
+
+
+                var fe = $('#fe')[0].checked;
+                var re = $('#re')[0].checked;
+                var rx1 = parseInt($('#rx1').val());
+                var ry1 = parseInt($('#ry1').val());
+                var rx2 = parseInt($('#rx2').val());
+                var ry2 = parseInt($('#ry2').val());
+
+                var ow = parseInt($('#ow').val());
+                var oh = parseInt($('#oh').val());
+                //  var oa = parseInt($('#oa').val());
+
+                var r = null;
+                if (re)
+                    r = ImageScaler2.calcRegion3(iw, ih, ow, oh, rx1, ry1, rx2, ry2, fe);
+                else
+                    r = ImageScaler2.calcRegion1(iw, ih, ow, oh, fe);
+
+                var niw = Math.round(iw * r.mag);
+                var nih = Math.round(ih * r.mag);
+
+                var px = Math.round(r.l);
+                var py = Math.round(r.t);
+                var pw = Math.round(r.r - r.l);
+                var ph = Math.round(r.b - r.t);
+
+                var ht = '';
+
+                ht += '<div class=\"outerwrapper\" style=\"width:' + ow + 'px;height:' + oh + 'px;\">';
+                ht += '<div class=\"innerwrapper\" style=\"left:' + px + 'px;top:' + py + 'px;\">';
+                ht += '<img src=\"' + iu + '\" style=\"width:' + niw + 'px;height:' + nih + 'px;\">';
+                ht += '</div>';
+                ht += '</div>';
+
+                $('#preview').html(ht);
+
+                ht = '';
+                ht += '<div class=\"outerwrapper\" style=\"height:' + (oh + 200) + 'px;\"><div style=\"margin:100px;width:' + niw + 'px;height:' + nih + 'px;\"></div>';
+                ht += '<div class=\"indicator\" style=\"left:' + (100 + px) + 'px;top:' + (100 + py) + 'px;width:' + pw + 'px;height:' + ph + 'px;\"><img src=\"' + iu + '\" style=\"width:' + niw + 'px;height:' + nih + 'px;\"/></div>';
+                ht += '<div class=\"indicator2\" style=\"left:' + 100 + 'px;top:' + 100 + 'px;width:' + ow + 'px;height:' + oh + 'px;\"></div>';
+                ht += '</div>';
+
+                $('#preview2').html(ht);
+
+                var code = 'var r = ImageScaler2.calcRegion3(' + iw + ', ' + ih + ', ' + ow + ', ' + oh + ', ' + rx1 + ', ' + ry1 + ', ' + rx2 + ', ' + ry2 + ', ' + fe + ');\n';
+                code += 'r = ' + JSON.stringify(r);
+                $('#code').html(code);
+
+
+            };
+
+            inputchanged = function () {
+
+                var iu = $('#iu').val();
+
+                var iw = parseInt($('#iw').val());
+                var ih = parseInt($('#ih').val());
+
+                var rx1 = parseInt($('#rx1').val());
+                var ry1 = parseInt($('#ry1').val());
+                var rx2 = parseInt($('#rx2').val());
+                var ry2 = parseInt($('#ry2').val());
+
+                var rw = rx2 - rx1;
+                var rh = ry2 - ry1;
+
+                var ht = '';
+
+                ht += '<img src=\"' + iu + '\" />';
+
+                ht += '<div class=\"region\" style=\"left:' + rx1 + 'px;top:' + ry1 + 'px;width:' + rw + 'px;height:' + rh + 'px;\"></div>';
+
+                $('#input').html(ht);
+
+                this.updateoutput();
+            };
+
+            demodata1 = function () {
+                $('#iu').val('http://farm6.static.flickr.com/5009/5217881218_d5244ab43b.jpg');
+                $('#iw').val('500');
+                $('#ih').val('333');
+                $('#ow').val('100');
+                $('#oh').val('50');
+                $('#oa').val('0.75');
+                $('#fe')[0].checked = true;
+                $('#re')[0].checked = true;
+                $('#rx1').val('180');
+                $('#ry1').val('50');
+                $('#rx2').val('330');
+                $('#ry2').val('200');
+            };
+
+            demodata2 = function () {
+                $('#iu').val('http://www.photoshopstar.com/wp-content/uploads/2009/05/photo_manipulation_eye.jpg');
+                $('#iw').val('500');
+                $('#ih').val('300');
+                $('#ow').val('100');
+                $('#oh').val('100');
+                $('#oa').val('1.0');
+                $('#fe')[0].checked = true;
+                $('#re')[0].checked = true;
+                $('#rx1').val('180');
+                $('#ry1').val('100');
+                $('#rx2').val('300');
+                $('#ry2').val('220');
+            };
+
+            demodata3 = function () {
+                $('#iu').val('http://www.huddletogether.com/projects/lightbox2/images/image-2.jpg');
+                $('#iw').val('600');
+                $('#ih').val('450');
+                $('#ow').val('100');
+                $('#oh').val('100');
+                $('#oa').val('1.0');
+                $('#fe')[0].checked = true;
+                $('#re')[0].checked = false;
+                $('#rx1').val('250');
+                $('#ry1').val('100');
+                $('#rx2').val('600');
+                $('#ry2').val('350');
+            };
+
+            demodata4 = function () {
+                $('#iu').val('http://farm5.static.flickr.com/4022/5151073555_8acb6bb047_z.jpg');
+                $('#iw').val('425');
+                $('#ih').val('640');
+                $('#ow').val('64');
+                $('#oh').val('64');
+                $('#oa').val('1.0');
+                $('#fe')[0].checked = true;
+                $('#re')[0].checked = true;
+                $('#rx1').val('250');
+                $('#ry1').val('500');
+                $('#rx2').val('400');
+                $('#ry2').val('640');
+            };
+
+            this.demodata1();
+
+            (function (self) {
+                $('#iu').change(function () { self.inputchanged(); });
+                $('#iw').change(function () { self.inputchanged(); });
+                $('#ih').change(function () { self.inputchanged(); });
+                $('#ow').change(function () { self.inputchanged(); });
+                $('#oh').change(function () { self.inputchanged(); });
+                $('#fe').change(function () { self.inputchanged(); });
+                $('#re').change(function () { self.inputchanged(); });
+                $('#rx1').change(function () { self.inputchanged(); });
+                $('#ry1').change(function () { self.inputchanged(); });
+                $('#rx2').change(function () { self.inputchanged(); });
+                $('#ry2').change(function () { self.inputchanged(); });
+                $('#demo1').click(function () { self.demodata1(); self.inputchanged(); });
+                $('#demo2').click(function () { self.demodata2(); self.inputchanged(); });
+                $('#demo3').click(function () { self.demodata3(); self.inputchanged(); });
+                $('#demo4').click(function () { self.demodata4(); self.inputchanged(); });
+            })(this);
+
+            this.inputchanged();
+            this.updateoutput();
+
+        })();
+
+
+    </script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+    var $box = $('#box'),
+        boxOffset = $box.offset(),
+        $img = $box.children(),
+        boxW = $box.width(),
+        boxH = $box.height(),
+        scale = 0.05,
+        imgWidth = boxW,
+        imgHeight = boxH,
+        imgX = 0,
+        imgY = 0;
+
+    function reset() {
+        imgWidth = boxW;
+        imgHeight = boxH;
+        imgX = imgY = 0;
+        updateImgZoom();
+    }
+
+    function updateImgZoom() {
+        if (imgX > 0) {
+            imgX = 0;
+        } else if (imgX < boxW - imgWidth) {
+            imgX = boxW - imgWidth;
+        }
+
+        if (imgY > 0) {
+            imgY = 0;
+        } else if (imgY < boxH - imgHeight) {
+            imgY = boxH - imgHeight;
+        }
+
+        $img.stop().animate({
+            width: imgWidth,
+            height: imgHeight,
+            left: Math.min(0, imgX),
+            top: Math.min(0, imgY)
+        });
+    }
+
+    $box.on('mousewheel', function (e) {
+        var deltaY = 0;
+        e.preventDefault();
+
+        e = e.originalEvent;
+
+        if (e.deltaY) {
+            deltaY = e.deltaY;
+        } else if (e.wheelDelta) {
+            deltaY = -e.wheelDelta;
+        }
+
+
+        var offsetX = e.pageX - boxOffset.left,
+            offsetY = e.pageY - boxOffset.top,
+
+            mouseX = offsetX - imgX,
+            mouseY = offsetY - imgY,
+
+            ratioX = mouseX / imgWidth,
+            ratioY = mouseY / imgHeight;
+
+        if (deltaY < 0) {
+            imgWidth += imgWidth * scale;
+            imgHeight += imgHeight * scale;
+        } else {
+            imgWidth -= imgWidth * scale;
+            imgHeight -= imgHeight * scale;
+        }
+
+        imgX = offsetX - (imgWidth * ratioX);
+        imgY = offsetY - (imgHeight * ratioY);
+
+        if (imgWidth <= boxW || imgHeight <= boxH) {
+            reset();
+        } else {
+            updateImgZoom();
+        }
+    }).on('click', function(e) {
+
+        var offsetX = e.pageX - boxOffset.left,
+            offsetY = e.pageY - boxOffset.top,
+
+            mouseX = offsetX - imgX,
+            mouseY = offsetY - imgY,
+
+            ratioX = mouseX / imgWidth,
+            ratioY = mouseY / imgHeight,
+
+            distX = imgWidth,
+            distY = imgHeight;
+
+        imgWidth = imgWidth * 1.4;
+        distX = imgWidth - distX;
+        imgX = imgX - (distX * ratioX) + (250 - offsetX);
+
+        imgHeight = imgHeight * 1.4;
+        distY = imgHeight - distY;
+        imgY = imgY - (distY * ratioY) + (250 - offsetY);
+
+        console.log(imgX, imgY);
+
+
+        if (imgWidth <= boxW || imgHeight <= boxH) {
+            reset();
+        } else {
+            updateImgZoom();
+        }
+    });
+
+</script>
+</body>
+</html>
