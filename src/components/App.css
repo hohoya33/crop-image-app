@@ -1,0 +1,42 @@
+.docs-data > .input-group {
+  margin-bottom: .5rem;
+}
+.docs-data .input-group-prepend .input-group-text {
+  min-width: 4rem;
+}
+.docs-data .input-group-append .input-group-text {
+  min-width: 3rem;
+}
+
+#output, #crop, #input{
+    position: relative;
+    margin: 0 0 20px 0;
+    border: 1px solid #f0f;
+    padding: 0;
+}
+
+#input .region{
+    position: absolute;
+    border: 1px solid #0f0;
+}
+
+.outerwrapper{
+    position: relative;
+    overflow: hidden;
+    background-color: #edc;
+}
+
+.outerwrapper .innerwrapper{
+    position: absolute;
+}
+.outerwrapper .indicator{
+    position: absolute;
+    margin: 0;
+    padding: 0;
+}
+.outerwrapper .area{
+    position: absolute;
+    background-color: rgba(255,255,0,0.5);
+    margin: 0;
+    padding: 0;
+}
